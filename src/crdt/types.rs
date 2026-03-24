@@ -1,11 +1,11 @@
 /// Identifies a unique site (user/replica) in the distributed system.
 /// Each collaborator gets a unique SiteId so we can tell edits apart.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct SiteId(pub u64);
 
 /// A Lamport timestamp — a logical clock that increments with each operation.
 /// Combined with SiteId, this gives every operation a globally unique, orderable identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct LamportTimestamp(pub u64);
 
 /// Uniquely identifies any operation across all sites.
@@ -14,7 +14,7 @@ pub struct LamportTimestamp(pub u64);
 /// - Two ops from different sites have different site IDs
 /// Ordering: timestamp first, then site ID as tiebreaker — this is what makes
 /// concurrent inserts at the same position resolve deterministically.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct OpId {
     pub timestamp: LamportTimestamp,
     pub site: SiteId,
@@ -36,7 +36,7 @@ impl PartialOrd for OpId {
 
 /// The kinds of changes that can be made to a document.
 /// These are the operations that get replicated between sites.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Operation {
     /// Insert content after the element with the given OpId.
     /// `after: None` means insert at the very beginning.

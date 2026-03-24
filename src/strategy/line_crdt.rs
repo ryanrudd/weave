@@ -2,7 +2,7 @@ use crate::crdt::{LamportTimestamp, MergeStrategy, OpId, Operation, SiteId};
 
 /// A single element in the RGA sequence.
 /// Each line in the document becomes one of these.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Element {
     /// Unique identity of this element.
     id: OpId,
@@ -24,6 +24,7 @@ struct Element {
 /// 3. Insert before the first element with a lower OpId
 ///
 /// This gives deterministic ordering for concurrent inserts at the same position.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct LineCRDT {
     site: SiteId,
     clock: LamportTimestamp,
