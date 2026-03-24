@@ -42,4 +42,7 @@ pub trait MergeStrategy {
     /// Set the logical clock to at least the given value.
     /// Used by Repository to keep clocks consistent across branch checkouts.
     fn set_clock_minimum(&mut self, min: u64);
+
+    /// Get the OpIds of all visible (non-deleted) elements in order.
+    fn visible_ids(&self) -> Vec<OpId>;
 }

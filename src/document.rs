@@ -102,4 +102,10 @@ impl<S: MergeStrategy> Document<S> {
     pub fn clock(&self) -> u64 {
         self.strategy.clock()
     }
+
+    /// Get the OpIds of all visible (non-deleted) elements in order.
+    /// Used to identify lines for deletion during re-add.
+    pub fn visible_ids(&self) -> Vec<OpId> {
+        self.strategy.visible_ids()
+    }
 }

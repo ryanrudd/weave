@@ -159,11 +159,56 @@ fn cmd_add(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, file: &str) {
         }
     };
 
-    // Replace the document's content with what's on disk.
-    // We clear and re-add all lines. A smarter version would diff.
+    let new_lines: Vec<&str> = content.lines().collect();
+
+    // Get current tracked content for this file (if any)
+    let existing_lines: Vec<String> = repo
+        .read_file(file)
+        .map(|s| s.lines().map(|l| l.to_string()).collect())
+        .unwrap_or_default();
+
+    // Simple diff: find lines that need to be added at the end.
+    // For a new file or appended content, this handles the common case.
+    // A full diff algorithm would handle insertions/deletions anywhere,
+    // but this covers the most important scenarios for the prototype.
+    if new_lines.iter().map(|s| s.to_string()).collect::<Vec<_>>() == existing_lines {
+        println!("No changes to '{}'", file);
+        return;
+    }
+
+    // If the file is new or completely rewritten, add all lines
     let doc = repo.open_file(file);
-    for line in content.lines() {
-        doc.append(line.to_string());
+    if existing_lines.is_empty() {
+        for line in &new_lines {
+            doc.append(line.to_string());
+        }
+    } else {
+        // Find how many leading lines match (common prefix)
+        let common_prefix = existing_lines
+            .iter()
+            .zip(new_lines.iter())
+            .take_while(|(a, b)| a.as_str() == **b)
+            .count();
+
+        // For now: if the new content extends the old content, just append.
+        // If it's a different edit, we delete old lines and re-add.
+        if common_prefix == existing_lines.len() && new_lines.len() > existing_lines.len() {
+            // Pure append — just add the new lines
+            for line in &new_lines[common_prefix..] {
+                doc.append(line.to_string());
+            }
+        } else {
+            // Content changed in a way that's not a simple append.
+            // Delete all existing lines and re-add everything.
+            // This is correct but generates more ops than a minimal diff would.
+            let ids = doc.visible_ids();
+            for id in ids {
+                doc.delete(id);
+            }
+            for line in &new_lines {
+                doc.append(line.to_string());
+            }
+        }
     }
 
     save_repo(repo, weave_dir);

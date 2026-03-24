@@ -181,4 +181,12 @@ impl MergeStrategy for LineCRDT {
             self.clock.0 = min;
         }
     }
+
+    fn visible_ids(&self) -> Vec<OpId> {
+        self.elements
+            .iter()
+            .filter(|e| !e.deleted)
+            .map(|e| e.id)
+            .collect()
+    }
 }
