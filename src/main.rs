@@ -1,8 +1,3 @@
-mod crdt;
-mod document;
-mod repository;
-mod strategy;
-
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -105,7 +100,7 @@ fn with_repo(f: impl FnOnce(Repository<LineCRDT>, PathBuf)) {
 }
 
 /// Helper: save repo back to disk after mutation.
-fn save_repo(repo: &Repository<LineCRDT>, weave_dir: &PathBuf) {
+fn save_repo(repo: &Repository<LineCRDT>, weave_dir: &std::path::Path) {
     storage::save(repo, weave_dir).expect("Failed to save repository");
 }
 
@@ -146,7 +141,7 @@ fn cmd_status(repo: &Repository<LineCRDT>) {
     }
 }
 
-fn cmd_add(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, file: &str) {
+fn cmd_add(repo: &mut Repository<LineCRDT>, weave_dir: &std::path::Path, file: &str) {
     // Read the file from the working directory (the actual filesystem)
     let repo_root = weave_dir.parent().unwrap();
     let file_path = repo_root.join(file);
@@ -215,7 +210,7 @@ fn cmd_add(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, file: &str) {
     println!("Added '{}'", file);
 }
 
-fn cmd_commit(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, message: &str) {
+fn cmd_commit(repo: &mut Repository<LineCRDT>, weave_dir: &std::path::Path, message: &str) {
     let commit_id = repo.commit(message);
     save_repo(repo, weave_dir);
     println!("[{}] {}", commit_id.0, message);
@@ -228,12 +223,7 @@ fn cmd_log(repo: &Repository<LineCRDT>) {
     let branch = &branches[branch_name];
     let mut id = branch.head;
 
-    loop {
-        let commit = match repo.get_commit(id) {
-            Some(c) => c,
-            None => break,
-        };
-
+    while let Some(commit) = repo.get_commit(id) {
         let files_changed: usize = commit.operations.len();
         println!("commit {}", id.0);
         if commit.parents.len() > 1 {
@@ -255,13 +245,13 @@ fn cmd_log(repo: &Repository<LineCRDT>) {
     }
 }
 
-fn cmd_branch(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, name: &str) {
+fn cmd_branch(repo: &mut Repository<LineCRDT>, weave_dir: &std::path::Path, name: &str) {
     repo.create_branch(name);
     save_repo(repo, weave_dir);
     println!("Created branch '{}'", name);
 }
 
-fn cmd_checkout(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, branch: &str) {
+fn cmd_checkout(repo: &mut Repository<LineCRDT>, weave_dir: &std::path::Path, branch: &str) {
     match repo.checkout(branch) {
         Ok(()) => {
             save_repo(repo, weave_dir);
@@ -274,7 +264,7 @@ fn cmd_checkout(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, branch: &s
     }
 }
 
-fn cmd_merge(repo: &mut Repository<LineCRDT>, weave_dir: &PathBuf, branch: &str) {
+fn cmd_merge(repo: &mut Repository<LineCRDT>, weave_dir: &std::path::Path, branch: &str) {
     match repo.merge(branch) {
         Ok(commit_id) => {
             save_repo(repo, weave_dir);

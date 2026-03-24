@@ -135,11 +135,7 @@ impl MergeStrategy for LineCRDT {
             site: self.site,
         };
 
-        let op = Operation::Insert {
-            id,
-            after,
-            content,
-        };
+        let op = Operation::Insert { id, after, content };
 
         // Apply locally
         self.apply(op.clone());

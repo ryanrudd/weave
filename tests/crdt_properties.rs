@@ -174,12 +174,23 @@ fn idempotency_single_op() {
 
     let mut crdt = LineCRDT::new(SiteId(99));
     crdt.apply(op.clone());
-    let after_first = crdt.render().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let after_first = crdt
+        .render()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
 
     crdt.apply(op);
-    let after_second = crdt.render().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let after_second = crdt
+        .render()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
 
-    assert_eq!(after_first, after_second, "Applying the same insert twice must be a no-op");
+    assert_eq!(
+        after_first, after_second,
+        "Applying the same insert twice must be a no-op"
+    );
     assert_eq!(after_first, vec!["hello"]);
 }
 
@@ -453,7 +464,10 @@ fn empty_merge_is_identity() {
 
     let after: Vec<String> = doc.lines().into_iter().map(|s| s.to_string()).collect();
 
-    assert_eq!(before, after, "Merging empty ops must not change document state");
+    assert_eq!(
+        before, after,
+        "Merging empty ops must not change document state"
+    );
 }
 
 // ---------------------------------------------------------------------------

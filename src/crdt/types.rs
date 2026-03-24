@@ -1,17 +1,22 @@
 /// Identifies a unique site (user/replica) in the distributed system.
 /// Each collaborator gets a unique SiteId so we can tell edits apart.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct SiteId(pub u64);
 
 /// A Lamport timestamp — a logical clock that increments with each operation.
 /// Combined with SiteId, this gives every operation a globally unique, orderable identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct LamportTimestamp(pub u64);
 
 /// Uniquely identifies any operation across all sites.
 /// The combination of (timestamp, site) is guaranteed unique because:
 /// - Two ops from the same site have different timestamps (local clock increments)
 /// - Two ops from different sites have different site IDs
+///
 /// Ordering: timestamp first, then site ID as tiebreaker — this is what makes
 /// concurrent inserts at the same position resolve deterministically.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

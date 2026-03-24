@@ -93,7 +93,10 @@ fn divergent_branches_merge_cleanly() {
     let content = repo.read_file("shared.txt").unwrap();
     assert!(content.contains("base line"), "Base line missing");
     assert!(content.contains("added on main"), "Main's edit missing");
-    assert!(content.contains("added on feature"), "Feature's edit missing");
+    assert!(
+        content.contains("added on feature"),
+        "Feature's edit missing"
+    );
 }
 
 #[test]

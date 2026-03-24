@@ -192,7 +192,11 @@ fn concurrent_insert_same_position_three_sites() {
 
     assert_eq!(doc_a.lines(), doc_b.lines(), "A and B must converge");
     assert_eq!(doc_b.lines(), doc_c.lines(), "B and C must converge");
-    assert_eq!(doc_a.lines().len(), 3, "All three inserts should be visible");
+    assert_eq!(
+        doc_a.lines().len(),
+        3,
+        "All three inserts should be visible"
+    );
 }
 
 #[test]
@@ -227,7 +231,10 @@ fn merge_after_local_edits() {
     let pos_l1 = a_lines.iter().position(|l| *l == "line 1").unwrap();
     let pos_l2 = a_lines.iter().position(|l| *l == "line 2").unwrap();
     let pos_l3 = a_lines.iter().position(|l| *l == "line 3").unwrap();
-    assert!(pos_l1 < pos_l2 && pos_l2 < pos_l3, "A's chain order must be preserved");
+    assert!(
+        pos_l1 < pos_l2 && pos_l2 < pos_l3,
+        "A's chain order must be preserved"
+    );
     let pos_b1 = a_lines.iter().position(|l| *l == "B line 1").unwrap();
     let pos_b2 = a_lines.iter().position(|l| *l == "B line 2").unwrap();
     assert!(pos_b1 < pos_b2, "B's chain order must be preserved");
@@ -249,7 +256,11 @@ fn bidirectional_merge() {
     doc_a.merge_remote(ops_b.clone());
     doc_b.merge_remote(ops_a.clone());
 
-    assert_eq!(doc_a.lines(), doc_b.lines(), "Bidirectional merge must converge");
+    assert_eq!(
+        doc_a.lines(),
+        doc_b.lines(),
+        "Bidirectional merge must converge"
+    );
     assert_eq!(doc_a.lines().len(), 2);
     assert!(doc_a.lines().contains(&"A1"));
     assert!(doc_a.lines().contains(&"B1"));
@@ -264,7 +275,11 @@ fn bidirectional_merge() {
     doc_a.merge_remote(ops_b2.clone());
     doc_b.merge_remote(ops_a2.clone());
 
-    assert_eq!(doc_a.lines(), doc_b.lines(), "Second round must also converge");
+    assert_eq!(
+        doc_a.lines(),
+        doc_b.lines(),
+        "Second round must also converge"
+    );
     assert_eq!(doc_a.lines().len(), 4);
 }
 
@@ -353,7 +368,11 @@ fn one_site_deletes_other_inserts_nearby() {
     doc_a.merge_remote(ops_b.clone());
     doc_b.merge_remote(ops_a.clone());
 
-    assert_eq!(doc_a.lines(), doc_b.lines(), "Delete + nearby insert must converge");
+    assert_eq!(
+        doc_a.lines(),
+        doc_b.lines(),
+        "Delete + nearby insert must converge"
+    );
     // "first" is deleted, but "inserted after first" and "second" survive.
     assert!(!doc_a.lines().contains(&"first"));
     assert!(doc_a.lines().contains(&"inserted after first"));
@@ -387,10 +406,26 @@ fn merge_with_many_operations() {
     for i in 0..10 {
         let a_line = format!("A-{}", i);
         let b_line = format!("B-{}", i);
-        assert!(doc_a.lines().iter().any(|l| *l == a_line), "doc_a missing {}", a_line);
-        assert!(doc_a.lines().iter().any(|l| *l == b_line), "doc_a missing {}", b_line);
-        assert!(doc_b.lines().iter().any(|l| *l == a_line), "doc_b missing {}", a_line);
-        assert!(doc_b.lines().iter().any(|l| *l == b_line), "doc_b missing {}", b_line);
+        assert!(
+            doc_a.lines().iter().any(|l| *l == a_line),
+            "doc_a missing {}",
+            a_line
+        );
+        assert!(
+            doc_a.lines().iter().any(|l| *l == b_line),
+            "doc_a missing {}",
+            b_line
+        );
+        assert!(
+            doc_b.lines().iter().any(|l| *l == a_line),
+            "doc_b missing {}",
+            a_line
+        );
+        assert!(
+            doc_b.lines().iter().any(|l| *l == b_line),
+            "doc_b missing {}",
+            b_line
+        );
     }
 
     // Within each site's chain, ordering must be preserved.
@@ -400,14 +435,24 @@ fn merge_with_many_operations() {
         let next = format!("A-{}", i + 1);
         let pos_cur = a_lines.iter().position(|l| *l == cur).unwrap();
         let pos_next = a_lines.iter().position(|l| *l == next).unwrap();
-        assert!(pos_cur < pos_next, "A's chain order must be preserved: {} before {}", cur, next);
+        assert!(
+            pos_cur < pos_next,
+            "A's chain order must be preserved: {} before {}",
+            cur,
+            next
+        );
     }
     for i in 0..9 {
         let cur = format!("B-{}", i);
         let next = format!("B-{}", i + 1);
         let pos_cur = a_lines.iter().position(|l| *l == cur).unwrap();
         let pos_next = a_lines.iter().position(|l| *l == next).unwrap();
-        assert!(pos_cur < pos_next, "B's chain order must be preserved: {} before {}", cur, next);
+        assert!(
+            pos_cur < pos_next,
+            "B's chain order must be preserved: {} before {}",
+            cur,
+            next
+        );
     }
 }
 
@@ -425,7 +470,10 @@ fn merge_empty_into_populated() {
 
     let after_lines: Vec<&str> = doc_a.lines();
     assert_eq!(
-        after_lines.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        after_lines
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
         original_lines,
         "Merging empty ops into populated doc must be a no-op"
     );

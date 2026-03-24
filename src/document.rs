@@ -88,11 +88,6 @@ impl<S: MergeStrategy> Document<S> {
         self.committed_offset = self.ops_log.len();
     }
 
-    /// Render the document as a single string (lines joined by newlines).
-    pub fn to_string(&self) -> String {
-        self.strategy.render().join("\n")
-    }
-
     /// Render the document as a vector of lines.
     pub fn lines(&self) -> Vec<&str> {
         self.strategy.render()
@@ -107,5 +102,11 @@ impl<S: MergeStrategy> Document<S> {
     /// Used to identify lines for deletion during re-add.
     pub fn visible_ids(&self) -> Vec<OpId> {
         self.strategy.visible_ids()
+    }
+}
+
+impl<S: MergeStrategy> std::fmt::Display for Document<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.strategy.render().join("\n"))
     }
 }

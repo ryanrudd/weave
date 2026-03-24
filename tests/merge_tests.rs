@@ -4,10 +4,7 @@ use weave::strategy::LineCRDT;
 
 /// Helper: create a document with a LineCRDT strategy for the given site.
 fn make_doc(name: &str, site: u64) -> Document<LineCRDT> {
-    Document::new(
-        name.to_string(),
-        LineCRDT::new(SiteId(site)),
-    )
+    Document::new(name.to_string(), LineCRDT::new(SiteId(site)))
 }
 
 #[test]
@@ -70,7 +67,11 @@ fn concurrent_appends_merge_deterministically() {
     let result2 = doc2.lines();
 
     assert_eq!(result1, result2, "Documents diverged after merge!");
-    assert_eq!(result1.len(), 2, "Expected 2 lines after merging concurrent appends");
+    assert_eq!(
+        result1.len(),
+        2,
+        "Expected 2 lines after merging concurrent appends"
+    );
 }
 
 #[test]

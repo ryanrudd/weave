@@ -120,7 +120,10 @@ pub fn save<S: MergeStrategy>(repo: &Repository<S>, weave_dir: &Path) -> Result<
 }
 
 /// Load a repository from a .weave directory.
-pub fn load<S: MergeStrategy>(weave_dir: &Path, strategy_factory: fn(SiteId) -> S) -> Result<Repository<S>, String> {
+pub fn load<S: MergeStrategy>(
+    weave_dir: &Path,
+    strategy_factory: fn(SiteId) -> S,
+) -> Result<Repository<S>, String> {
     let meta_json = fs::read_to_string(weave_dir.join("repo.json")).map_err(|e| e.to_string())?;
     let meta: RepoMeta = serde_json::from_str(&meta_json).map_err(|e| e.to_string())?;
 

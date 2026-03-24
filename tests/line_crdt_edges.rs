@@ -13,7 +13,10 @@ fn op(ts: u64, site: u64) -> OpId {
 fn empty_doc_render() {
     let crdt = LineCRDT::new(SiteId(1));
     let rendered = crdt.render();
-    assert!(rendered.is_empty(), "Empty LineCRDT should render to empty vec");
+    assert!(
+        rendered.is_empty(),
+        "Empty LineCRDT should render to empty vec"
+    );
 }
 
 #[test]
@@ -69,7 +72,10 @@ fn delete_only_element() {
     assert_eq!(crdt.render().len(), 1);
 
     crdt.delete(id);
-    assert!(crdt.render().is_empty(), "After deleting the only element, render should be empty");
+    assert!(
+        crdt.render().is_empty(),
+        "After deleting the only element, render should be empty"
+    );
 }
 
 #[test]
@@ -242,7 +248,13 @@ fn interleaved_insert_delete() {
     }
 
     let rendered = crdt.render();
-    assert_eq!(rendered, surviving_lines.iter().map(|s| s.as_str()).collect::<Vec<&str>>());
+    assert_eq!(
+        rendered,
+        surviving_lines
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<&str>>()
+    );
 }
 
 #[test]
@@ -268,8 +280,14 @@ fn render_skips_all_tombstones() {
         crdt.delete(*id);
     }
 
-    assert!(crdt.render().is_empty(), "All elements deleted, render should return empty vec");
-    assert!(crdt.visible_ids().is_empty(), "No visible ids after full deletion");
+    assert!(
+        crdt.render().is_empty(),
+        "All elements deleted, render should return empty vec"
+    );
+    assert!(
+        crdt.visible_ids().is_empty(),
+        "No visible ids after full deletion"
+    );
 }
 
 #[test]
