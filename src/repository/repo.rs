@@ -307,4 +307,52 @@ impl<S: MergeStrategy> Repository<S> {
             .map(|(filename, ops)| FileOps { filename, ops })
             .collect()
     }
+
+    // --- Accessors for storage layer ---
+
+    /// Iterate over all commits.
+    pub fn commits(&self) -> &HashMap<CommitId, Commit> {
+        &self.commits
+    }
+
+    /// Get all branches.
+    pub fn branches(&self) -> &HashMap<String, Branch> {
+        &self.branches
+    }
+
+    /// Get the next commit ID counter.
+    pub fn next_commit_id(&self) -> u64 {
+        self.next_commit_id
+    }
+
+    /// Get the global clock value.
+    pub fn global_clock(&self) -> u64 {
+        self.global_clock
+    }
+
+    /// Reconstruct a Repository from its persisted parts.
+    /// Used by the storage layer when loading from disk.
+    pub fn from_parts(
+        site: SiteId,
+        commits: HashMap<CommitId, Commit>,
+        branches: HashMap<String, Branch>,
+        current_branch: String,
+        next_commit_id: u64,
+        global_clock: u64,
+        strategy_factory: fn(SiteId) -> S,
+    ) -> Self {
+        let mut repo = Repository {
+            site,
+            commits,
+            branches,
+            current_branch: current_branch.clone(),
+            working_docs: HashMap::new(),
+            next_commit_id,
+            global_clock,
+            strategy_factory,
+        };
+        // Rebuild working state from commit history
+        repo.rebuild_working_state();
+        repo
+    }
 }
