@@ -8,9 +8,12 @@ use crate::crdt::{MergeStrategy, OpId, Operation};
 pub struct Document<S: MergeStrategy> {
     pub name: String,
     strategy: S,
-    /// Log of all operations applied to this document, in application order.
-    /// This is what gets sent to other sites when merging.
+    /// Log of locally-generated operations (insert, delete calls on this doc).
+    /// Does NOT include ops applied via merge_remote.
     ops_log: Vec<Operation>,
+    /// How many ops from ops_log have already been included in a commit.
+    /// This lets us return only uncommitted ops when it's time to commit.
+    committed_offset: usize,
 }
 
 impl<S: MergeStrategy> Document<S> {
@@ -19,13 +22,14 @@ impl<S: MergeStrategy> Document<S> {
             name,
             strategy,
             ops_log: Vec::new(),
+            committed_offset: 0,
         }
     }
 
     /// Append a line at the end of the document.
     /// Returns the OpId of the inserted line (useful for inserting after it later).
     pub fn append(&mut self, content: String) -> OpId {
-        let after = self.last_visible_id();
+        let after = self.strategy.last_visible_id();
         let op = self.strategy.insert(after, content);
         let id = match &op {
             Operation::Insert { id, .. } => *id,
@@ -59,9 +63,21 @@ impl<S: MergeStrategy> Document<S> {
     }
 
     /// Get all operations in this document's history.
-    /// Used to send our state to another site for merging.
+    /// Used for low-level access (e.g., tests that simulate two standalone docs).
     pub fn operations(&self) -> &[Operation] {
         &self.ops_log
+    }
+
+    /// Get only the operations that haven't been committed yet.
+    /// This is what Repository::commit() should use.
+    pub fn uncommitted_operations(&self) -> &[Operation] {
+        &self.ops_log[self.committed_offset..]
+    }
+
+    /// Mark all current operations as committed.
+    /// Called by Repository after a successful commit.
+    pub fn mark_committed(&mut self) {
+        self.committed_offset = self.ops_log.len();
     }
 
     /// Render the document as a single string (lines joined by newlines).
@@ -74,31 +90,8 @@ impl<S: MergeStrategy> Document<S> {
         self.strategy.render()
     }
 
-    /// Find the OpId of the last visible (non-deleted) line.
-    /// Used internally to implement append.
-    fn last_visible_id(&self) -> Option<OpId> {
-        // We need access to the elements to find the last visible one.
-        // For now, we track this through the ops log — the last Insert
-        // that hasn't been deleted is our append target.
-        //
-        // This is a simplification. A production version would expose
-        // this from the strategy directly.
-        let deleted_ids: std::collections::HashSet<OpId> = self
-            .ops_log
-            .iter()
-            .filter_map(|op| match op {
-                Operation::Delete { id } => Some(*id),
-                _ => None,
-            })
-            .collect();
-
-        self.ops_log
-            .iter()
-            .rev()
-            .filter_map(|op| match op {
-                Operation::Insert { id, .. } if !deleted_ids.contains(id) => Some(*id),
-                _ => None,
-            })
-            .next()
+    /// Get the current logical clock value from the underlying strategy.
+    pub fn clock(&self) -> u64 {
+        self.strategy.clock()
     }
 }

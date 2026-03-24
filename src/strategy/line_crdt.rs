@@ -162,4 +162,22 @@ impl MergeStrategy for LineCRDT {
     fn site_id(&self) -> SiteId {
         self.site
     }
+
+    fn last_visible_id(&self) -> Option<OpId> {
+        self.elements
+            .iter()
+            .rev()
+            .find(|e| !e.deleted)
+            .map(|e| e.id)
+    }
+
+    fn clock(&self) -> u64 {
+        self.clock.0
+    }
+
+    fn set_clock_minimum(&mut self, min: u64) {
+        if min > self.clock.0 {
+            self.clock.0 = min;
+        }
+    }
 }

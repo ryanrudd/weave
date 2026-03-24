@@ -31,4 +31,15 @@ pub trait MergeStrategy {
 
     /// Get the SiteId for this strategy instance.
     fn site_id(&self) -> SiteId;
+
+    /// Get the OpId of the last visible (non-deleted) element.
+    /// Used by Document to implement append.
+    fn last_visible_id(&self) -> Option<OpId>;
+
+    /// Get the current logical clock value.
+    fn clock(&self) -> u64;
+
+    /// Set the logical clock to at least the given value.
+    /// Used by Repository to keep clocks consistent across branch checkouts.
+    fn set_clock_minimum(&mut self, min: u64);
 }

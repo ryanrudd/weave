@@ -24,6 +24,9 @@ pub struct Repository<S: MergeStrategy> {
     working_docs: HashMap<String, Document<S>>,
     /// Counter for generating commit IDs.
     next_commit_id: u64,
+    /// Global logical clock — ensures OpIds are unique across branch checkouts.
+    /// Each CRDT instance gets this as a minimum when created.
+    global_clock: u64,
     /// Factory function to create new strategy instances.
     /// We need this because when we check out a branch or create a new file,
     /// we need to build up a fresh CRDT and replay operations into it.
@@ -58,18 +61,25 @@ impl<S: MergeStrategy> Repository<S> {
             current_branch: "main".to_string(),
             working_docs: HashMap::new(),
             next_commit_id: 1,
+            global_clock: 0,
             strategy_factory,
         }
     }
 
     /// Get or create a working document by filename.
-    /// If the file doesn't exist yet, creates a new empty document.
+    /// If the file doesn't exist yet, creates a new empty document with the
+    /// global clock set so that new operations get unique IDs.
     pub fn open_file(&mut self, filename: &str) -> &mut Document<S> {
         let site = self.site;
         let factory = self.strategy_factory;
+        let clock = self.global_clock;
         self.working_docs
             .entry(filename.to_string())
-            .or_insert_with(|| Document::new(filename.to_string(), factory(site)))
+            .or_insert_with(|| {
+                let mut strategy = factory(site);
+                strategy.set_clock_minimum(clock);
+                Document::new(filename.to_string(), strategy)
+            })
     }
 
     /// Commit all pending operations across all working documents.
@@ -79,12 +89,12 @@ impl<S: MergeStrategy> Repository<S> {
         let id = CommitId(self.next_commit_id);
         self.next_commit_id += 1;
 
-        // Collect uncommitted ops from each document
+        // Collect only uncommitted ops from each document
         let operations: Vec<FileOps> = self
             .working_docs
             .iter()
             .filter_map(|(filename, doc)| {
-                let ops = doc.operations().to_vec();
+                let ops = doc.uncommitted_operations().to_vec();
                 if ops.is_empty() {
                     None
                 } else {
@@ -105,6 +115,15 @@ impl<S: MergeStrategy> Repository<S> {
 
         self.commits.insert(id, commit);
         self.branches.get_mut(&self.current_branch).unwrap().head = id;
+
+        // Update global clock to the max across all working docs, and mark committed
+        for doc in self.working_docs.values_mut() {
+            let doc_clock = doc.clock();
+            if doc_clock > self.global_clock {
+                self.global_clock = doc_clock;
+            }
+            doc.mark_committed();
+        }
 
         id
     }
@@ -211,6 +230,14 @@ impl<S: MergeStrategy> Repository<S> {
         for (filename, ops) in all_ops {
             let doc = self.open_file(&filename);
             doc.merge_remote(ops);
+        }
+
+        // Update global clock from rebuilt docs so new ops get unique IDs
+        for doc in self.working_docs.values() {
+            let doc_clock = doc.clock();
+            if doc_clock > self.global_clock {
+                self.global_clock = doc_clock;
+            }
         }
     }
 
