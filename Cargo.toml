@@ -2,6 +2,11 @@
 name = "weave"
 version = "0.1.0"
 edition = "2021"
+description = "A CRDT-based version control system with conflict-free merging"
+repository = "https://github.com/ryanrudd/weave"
+license = "MIT"
+keywords = ["vcs", "crdt", "merge", "version-control"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
