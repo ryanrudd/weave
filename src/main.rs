@@ -57,6 +57,8 @@ enum Commands {
     },
     /// List all branches
     Branches,
+    /// Launch interactive TUI
+    Tui,
 }
 
 fn main() {
@@ -79,6 +81,7 @@ fn main() {
         }
         Commands::Cat { file } => with_repo(|repo, _| cmd_cat(&repo, &file)),
         Commands::Branches => with_repo(|repo, _| cmd_branches(&repo)),
+        Commands::Tui => cmd_tui(),
     }
 }
 
@@ -297,5 +300,21 @@ fn cmd_branches(repo: &Repository<LineCRDT>) {
         } else {
             println!("  {}", name);
         }
+    }
+}
+
+fn cmd_tui() {
+    let cwd = env::current_dir().expect("Could not get current directory");
+    let weave_dir = match storage::find_weave_dir(&cwd) {
+        Some(d) => d,
+        None => {
+            eprintln!("Not a weave repository (or any parent). Run 'weave init' first.");
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(e) = weave::tui::run(&weave_dir) {
+        eprintln!("TUI error: {}", e);
+        std::process::exit(1);
     }
 }
