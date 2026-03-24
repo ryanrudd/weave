@@ -1,4 +1,5 @@
 mod crdt;
+mod document;
 mod strategy;
 
 fn main() {
