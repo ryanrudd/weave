@@ -4,9 +4,17 @@ use std::path::{Path, PathBuf};
 
 use crate::crdt::{MergeStrategy, SiteId};
 
+use crate::crdt::Operation;
+
 use super::branch::Branch;
 use super::commit::{Commit, CommitId};
 use super::repo::Repository;
+
+/// Staged (uncommitted) operations, keyed by filename.
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+struct Staging {
+    files: HashMap<String, Vec<Operation>>,
+}
 
 /// On-disk metadata for a repository (everything except commits).
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -98,6 +106,16 @@ pub fn save<S: MergeStrategy>(repo: &Repository<S>, weave_dir: &Path) -> Result<
     let meta_json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
     fs::write(weave_dir.join("repo.json"), meta_json).map_err(|e| e.to_string())?;
 
+    // Save uncommitted (staged) operations
+    let mut staging = Staging::default();
+    for (filename, ops) in repo.uncommitted_ops() {
+        if !ops.is_empty() {
+            staging.files.insert(filename.clone(), ops.to_vec());
+        }
+    }
+    let staging_json = serde_json::to_string_pretty(&staging).map_err(|e| e.to_string())?;
+    fs::write(weave_dir.join("staging.json"), staging_json).map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
@@ -119,7 +137,16 @@ pub fn load<S: MergeStrategy>(weave_dir: &Path, strategy_factory: fn(SiteId) -> 
         }
     }
 
-    Ok(Repository::from_parts(
+    // Load staged operations if they exist
+    let staging_path = weave_dir.join("staging.json");
+    let staging: Staging = if staging_path.exists() {
+        let json = fs::read_to_string(&staging_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&json).map_err(|e| e.to_string())?
+    } else {
+        Staging::default()
+    };
+
+    let mut repo = Repository::from_parts(
         meta.site,
         commits,
         meta.branches,
@@ -127,5 +154,15 @@ pub fn load<S: MergeStrategy>(weave_dir: &Path, strategy_factory: fn(SiteId) -> 
         meta.next_commit_id,
         meta.global_clock,
         strategy_factory,
-    ))
+    );
+
+    // Replay staged ops into working docs
+    for (filename, ops) in staging.files {
+        let doc = repo.open_file(&filename);
+        for op in ops {
+            doc.apply_local(op);
+        }
+    }
+
+    Ok(repo)
 }

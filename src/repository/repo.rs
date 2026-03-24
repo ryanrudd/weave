@@ -207,6 +207,22 @@ impl<S: MergeStrategy> Repository<S> {
         self.working_docs.get(filename).map(|doc| doc.to_string())
     }
 
+    /// Get uncommitted operations for each working document.
+    /// Used by the storage layer to persist staged changes.
+    pub fn uncommitted_ops(&self) -> Vec<(&String, &[Operation])> {
+        self.working_docs
+            .iter()
+            .map(|(name, doc)| (name, doc.uncommitted_operations()))
+            .collect()
+    }
+
+    /// List all tracked file names.
+    pub fn tracked_files(&self) -> Vec<&str> {
+        let mut files: Vec<&str> = self.working_docs.keys().map(|s| s.as_str()).collect();
+        files.sort();
+        files
+    }
+
     /// Rebuild working documents by replaying all operations from root
     /// to the current branch's head.
     fn rebuild_working_state(&mut self) {

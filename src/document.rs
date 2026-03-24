@@ -58,8 +58,16 @@ impl<S: MergeStrategy> Document<S> {
 
     /// Merge operations from a remote document into this one.
     /// This is the conflict-free part — applying remote ops will always succeed.
+    /// These ops are NOT added to the local ops_log (they're someone else's ops).
     pub fn merge_remote(&mut self, ops: Vec<Operation>) {
         self.strategy.merge(ops);
+    }
+
+    /// Apply a previously-generated local operation and record it in the ops log.
+    /// Used when restoring staged operations from disk.
+    pub fn apply_local(&mut self, op: Operation) {
+        self.strategy.apply(op.clone());
+        self.ops_log.push(op);
     }
 
     /// Get all operations in this document's history.
