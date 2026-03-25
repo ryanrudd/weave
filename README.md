@@ -1,153 +1,116 @@
 # weave
 
-A version control system built on CRDTs (Conflict-free Replicated Data Types). Branches always merge cleanly — no merge conflicts, ever.
+What if your branches could always merge?
 
-## The idea
+Weave is a version control system that uses [CRDTs](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) instead of three-way merge. The result: no merge conflicts. Two branches can edit the same file, diverge for as long as they want, and merge cleanly every time.
 
-Git uses three-way merge to combine branches. When two people edit nearby lines, you get a merge conflict and have to resolve it manually. Most of these conflicts are purely syntactic — the edits don't actually interfere with each other.
+The catch is that "cleanly" means structurally, not semantically. Weave guarantees the merge produces a deterministic result, but it can't know if your code still makes sense. That's what tests and CI are for. The bet is that most merge conflicts in practice are just textual noise, and getting them out of the way is worth it.
 
-Weave takes a different approach: instead of storing snapshots and diffing them, it stores **operations** (insert line, delete line) and uses a CRDT to guarantee that operations from any branch can be combined in any order and always converge to the same result.
+This is an experiment, not a git replacement. It's a toy built to explore an idea.
 
-The tradeoff: weave will never block you with a merge conflict, but it also won't catch semantic conflicts (two changes that are syntactically fine but logically incompatible). That's what your CI pipeline and tests are for.
+## How it's different
 
-```
-         git                          weave
-    ┌──────────┐                ┌──────────────┐
-    │ snapshot  │                │  operations  │
-    │  diffing  │                │   (CRDTs)    │
-    ├──────────┤                ├──────────────┤
-    │ 3-way    │                │ operation    │
-    │ merge    │                │ replay       │
-    ├──────────┤                ├──────────────┤
-    │ CONFLICT │ ← this goes → │ always       │
-    │ possible │    away        │ merges       │
-    └──────────┘                └──────────────┘
-```
+Git stores snapshots. When you merge, it diffs two snapshots against a common ancestor and hopes the changes don't overlap. When they do, you get a conflict.
 
-## Install
+Weave stores operations — "insert this line after that one" and "delete this line." Under the hood it's an [RGA](https://hal.inria.fr/inria-00555588/document) (Replicated Growable Array), a type of CRDT designed for ordered sequences. Every operation has a globally unique ID, so when two branches insert at the same spot, there's always a deterministic tiebreaker. Deletes leave tombstones so that concurrent inserts nearby don't lose their anchor point.
 
-**Download a binary** from the [latest release](https://github.com/ryanrudd/weave/releases/latest):
+Merging is just replaying one branch's operations into another. The CRDT handles the ordering. There's no diffing, no three-way comparison, and no conflicts.
+
+## Try it
+
+Grab a binary from the [latest release](https://github.com/ryanrudd/weave/releases/latest):
 
 ```bash
-# macOS (Apple Silicon)
-curl -L https://github.com/ryanrudd/weave/releases/latest/download/weave-macos-aarch64 -o weave
+# pick your platform
+curl -L https://github.com/ryanrudd/weave/releases/latest/download/weave-macos-aarch64 -o weave  # apple silicon
+curl -L https://github.com/ryanrudd/weave/releases/latest/download/weave-macos-x86_64 -o weave   # intel mac
+curl -L https://github.com/ryanrudd/weave/releases/latest/download/weave-linux-x86_64 -o weave   # linux
 
-# macOS (Intel)
-curl -L https://github.com/ryanrudd/weave/releases/latest/download/weave-macos-x86_64 -o weave
-
-# Linux (x86_64)
-curl -L https://github.com/ryanrudd/weave/releases/latest/download/weave-linux-x86_64 -o weave
-
-chmod +x weave
-sudo mv weave /usr/local/bin/
+chmod +x weave && sudo mv weave /usr/local/bin/
 ```
 
-**Or build from source:**
+Or build from source (`cargo build --release`).
+
+## The demo
 
 ```bash
-git clone https://github.com/ryanrudd/weave.git
-cd weave
-cargo build --release
-# binary is at target/release/weave
-```
-
-## Quick start
-
-```bash
-# Create a new repo
-mkdir myproject && cd myproject
+mkdir demo && cd demo
 weave init
 
-# Track a file and commit
 echo "hello world" > hello.txt
 weave add hello.txt
-weave commit -m "Initial commit"
+weave commit -m "first commit"
 
-# Branch, edit, and merge — no conflicts
+# make a branch and edit the file
 weave branch feature
 weave checkout feature
-echo -e "hello world\nfrom feature branch" > hello.txt
+echo -e "hello world\nfrom feature" > hello.txt
 weave add hello.txt
-weave commit -m "Feature work"
+weave commit -m "feature work"
 
+# go back to main, make a different edit
 weave checkout main
-echo -e "hello world\nfrom main branch" > hello.txt
+echo -e "hello world\nfrom main" > hello.txt
 weave add hello.txt
-weave commit -m "Main work"
+weave commit -m "main work"
 
+# merge — no conflict
 weave merge feature
 weave cat hello.txt
-# hello world
-# from main branch
-# from feature branch
 ```
 
-Both branches' changes are preserved. No conflict resolution needed.
+Output:
+```
+hello world
+from main
+from feature
+```
+
+Both edits survived. No resolution step.
+
+## TUI
+
+There's also a terminal UI. Run `weave tui` inside a repo.
+
+You can browse files (with modification status), scroll through commit history, switch branches, merge, create branches, add files, and commit — all without leaving the interface. Press `?` for keybindings.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `weave init` | Initialize a new repository |
-| `weave add <file>` | Track a file (reads current contents from disk) |
-| `weave commit -m "msg"` | Commit staged changes |
-| `weave log` | Show commit history |
-| `weave cat <file>` | Show a tracked file's contents |
-| `weave branch <name>` | Create a new branch |
-| `weave checkout <name>` | Switch to a branch |
-| `weave merge <name>` | Merge a branch into the current branch |
-| `weave branches` | List all branches |
-| `weave status` | Show tracked files |
-
-## How it works
-
-Weave uses an **RGA (Replicated Growable Array)** CRDT at its core. Each line in a file is an element with:
-
-- A globally unique ID (Lamport timestamp + site ID)
-- A reference to what it was inserted after
-- A tombstone flag for deletions
-
-When two branches insert at the same position, the unique IDs break the tie deterministically. When one branch deletes a line and another inserts next to it, the tombstone preserves the reference so the insert still lands in the right place.
-
-Operations are stored in commits (not snapshots). Merging replays the source branch's operations through the CRDT rather than diffing text — this is what makes it conflict-free.
-
-### Architecture
-
 ```
-┌─────────────────────────────┐
-│      CLI (clap)             │
-├─────────────────────────────┤
-│      Repository             │
-│  (branches, commits, HEAD)  │
-├─────────────────────────────┤
-│      Document               │
-│  (file-level operations)    │
-├─────────────────────────────┤
-│      MergeStrategy trait    │  ← strategy pattern
-├──────┬──────────┬───────────┤
-│ Line │ Char     │ AST       │
-│ CRDT │ (future) │ (future)  │
-└──────┴──────────┴───────────┘
+weave init                 create a new repo
+weave add <file>           stage a file from disk
+weave commit -m "msg"      commit staged changes
+weave log                  show commit history
+weave cat <file>           print a tracked file
+weave branch <name>        create a branch
+weave checkout <name>      switch branches
+weave merge <name>         merge a branch in
+weave branches             list branches
+weave status               show tracked files
+weave tui                  interactive terminal UI
 ```
 
-The `MergeStrategy` trait means the CRDT granularity is pluggable. Currently implemented: line-level. Character-level and AST-level are planned.
+## Architecture
+
+The merge strategy is behind a trait, so the CRDT granularity is pluggable. Right now it's line-level (each CRDT element = one line of text). Character-level and AST-level are on the roadmap.
+
+```
+CLI / TUI
+  -> Repository (branches, commits, history)
+    -> Document (per-file operations)
+      -> MergeStrategy trait
+        -> LineCRDT (implemented)
+        -> CharCRDT (planned)
+        -> AstCRDT  (planned)
+```
 
 ## Status
 
-This is an experimental project exploring what version control looks like when you remove merge conflicts from the equation. It's not a replacement for git — it's a playground for ideas.
+Working: init, add, commit, branch, checkout, merge, log, TUI. 113 tests. Disk persistence via `.weave` directory.
 
-**What works:**
-- Full branch/commit/merge workflow
-- Conflict-free merging across divergent branches
-- Disk persistence (`.weave` directory)
-- 113 tests covering CRDT properties, edge cases, and integration scenarios
+Not yet: networking/sync between repos, diff command, character-level merging.
 
-**What's next:**
-- Landing page with deeper explanation
-- Character-level CRDT strategy
-- `weave diff` command
-- TUI interface
-- Repo-to-repo sync (the truly distributed part)
+This is a learning project. If you find it interesting or want to poke at it, PRs and issues are welcome.
 
 ## License
 
