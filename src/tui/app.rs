@@ -614,8 +614,8 @@ impl PreviewLine {
 
 /// Launch the TUI.
 pub fn run(weave_dir: &Path) -> io::Result<()> {
-    let repo: Repository<LineCRDT> = storage::load(weave_dir, LineCRDT::new)
-        .map_err(io::Error::other)?;
+    let repo: Repository<LineCRDT> =
+        storage::load(weave_dir, LineCRDT::new).map_err(io::Error::other)?;
 
     let mut app = App::new(repo, weave_dir.to_path_buf());
 
